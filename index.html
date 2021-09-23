@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html>
+
+  <head>
+	  <title>BREAKOUT</title>
+	  <style>
+	  	kbd {
+	  		padding: 2px;
+	  		background: white;
+	  		color: black;
+	  		border: 2px solid black;
+	  		border-radius: 5px;
+	  	}
+	  </style>
+  </head>
+
+  <body style="background:rgb(20, 20, 20)">
+    
+    <h3 style="color:white; text-align:center">use <kbd>A</kbd><kbd>D</kbd> or <kbd>←</kbd><kbd>→</kbd> to move the pad</h3>
+    
+    <div style = "width:100%;text-align:center">
+		  <canvas id="breakout" width="480" height="600"></canvas>
+		</div>
+    </body>
+
+    <script>
+      //Starting settings
+canvas = document.getElementById("breakout");
+cc = canvas.getContext("2d");
+window.onkeydown = kd;
+window.onkeyup = ku;
+var interval = setInterval(update, 1000 / 60);
+
+function update() {
+  system();
+}
+
+//Create ball
+let ball;
+ball = {
+  x: 240,
+  y: 300,
+  r: 10,
+  direX: Math.round(Math.random()) ? Math.round((Math.random() * 3) * 10) / 10 : -Math.round((Math.random() * 3) * 10) / 10,
+  direY: 4
+}
+
+//Create pad
+let pad;
+pad = {
+  x: 175,
+  y: 585,
+  w: 130,
+  h: 15
+}
+//Create block 8*width:60, 7*height:25
+var blocks = new Array(7).fill(0).map(() => new Array(8).fill(0));
+for (let i = 0; i < 7; i++) {
+  for (let j = 0; j < 8; j++) {
+    blocks[i][j] = {
+      l: Math.round(Math.random() * 3),
+      x: j * 60,
+      y: i * 25 + 50,
+      w: 60,
+      h: 25
+    }
+  }
+}
+
+//P1 direction
+let p1
+
+
+//Check collision by: http://www.jeffreythompson.org/collision-detection/circle-rect.php
+function collision(circle, rect) {
+
+  //Temporary variables to set edges for testing
+  testX = circle.x;
+  testY = circle.y;
+
+  //Which edge is closest?
+  if (circle.x < rect.x) testX = rect.x;      //Test left edge
+  else if (circle.x > rect.x + rect.w) testX = rect.x + rect.w;   //Right edge
+  if (circle.y < rect.y) testY = rect.y;      //Top edge
+  else if (circle.y > rect.y + rect.h) testY = rect.y + rect.h;   //Bottom edge
+
+  //Get distance from closest edges
+  distX = circle.x - testX;
+  distY = circle.y - testY;
+  distance = Math.sqrt((distX * distX) + (distY * distY));
+
+  //If the distance is less than the radius, collision!
+  if (distance <= circle.r) {
+    return true;
+  }
+  return false;
+}
+
+//Reflect circle in the rect
+function reflect(circle, rect) {
+
+  if (collision(circle, rect) == true) {
+
+    if (circle.y < rect.y) {
+      if (circle.x < rect.x + rect.w / 2 && circle.x >= rect.x) {
+        circle.direY = -Math.abs(circle.direY);
+        circle.direX -= (rect.x + rect.w / 2 - circle.x) * 0.025;
+        circle.direX = Math.round(circle.direX * 100) / 100;
+      }
+
+      if (circle.x > rect.x + rect.w / 2 && circle.x <= rect.x + rect.w) {
+        circle.direY = -Math.abs(circle.direY);
+        circle.direX += (circle.x - rect.x - rect.w / 2) * 0.025;
+        circle.direX = Math.round(circle.direX * 100) / 100;
+      }
+
+      if (circle.x == rect.x + rect.w / 2) {
+        circle.direY = -Math.abs(circle.direY);
+      }
+    } else if (circle.y > rect.y) {
+      if (circle.x < rect.x + rect.w / 2 && circle.x >= rect.x) {
+        circle.direY = Math.abs(circle.direY);
+        circle.direX -= (rect.x + rect.w / 2 - circle.x) * 0.025;
+        circle.direX = Math.round(circle.direX * 100) / 100;
+      }
+
+      if (circle.x > rect.x + rect.w / 2 && circle.x <= rect.x + rect.w) {
+        circle.direY = Math.abs(circle.direY);
+        circle.direX += (circle.x - rect.x - rect.w / 2) * 0.025;
+        circle.direX = Math.round(circle.direX * 100) / 100;
+      }
+
+      if (circle.x == rect.x + rect.w / 2) {
+        circle.direY = Math.abs(circle.direY);
+      }
+    }
+
+    if ((circle.x > rect.x - circle.r / 2 && circle.x < rect.x) || (circle.x < rect.x + rect.w + circle.r / 2 && circle.x > rect.x + rect.w)) {
+      circle.direY = -circle.direY;
+      circle.direX = circle.direX;
+    }
+
+    if (circle.x < rect.x - circle.r / 2 || circle.x > rect.x + rect.w + circle.r / 2) {
+      circle.direX = -circle.direX;
+    }
+
+  }
+
+}
+
+function system() {
+  //Draw background
+  cc.fillStyle = "black";
+  cc.fillRect(0, 0, canvas.width, canvas.height);
+  cc.beginPath();
+  cc.strokeStyle = "white";
+  cc.moveTo(0, 0);
+  cc.lineTo(0, 600);
+  cc.moveTo(480, 0);
+  cc.lineTo(480, 600);
+  cc.moveTo(0, 0);
+  cc.lineTo(480, 0);
+  cc.stroke();
+  cc.closePath();
+
+  //Draw circle
+  cc.fillStyle = "white";
+  cc.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  cc.fill();
+
+  //blocks things
+  let bn=0;
+  for (let i = 0; i < 7; i++) {
+    for (let j = 0; j < 8; j++) {
+      //draw
+      if (blocks[i][j].l) {
+        bn=1;
+        if (blocks[i][j].l == 1) cc.fillStyle = "red";
+        if (blocks[i][j].l == 2) cc.fillStyle = "orange";
+        if (blocks[i][j].l == 3) cc.fillStyle = "yellow";
+        cc.fillRect(blocks[i][j].x, blocks[i][j].y, blocks[i][j].w - 1, blocks[i][j].h - 1);
+      }
+
+      //collision
+      if (collision(ball, blocks[i][j]) == 1 && blocks[i][j].l) {
+        reflect(ball, blocks[i][j]);
+        blocks[i][j].l -= 1;
+      }
+    }
+  }
+
+
+  //Draw pad
+  cc.fillStyle = "white";
+  cc.fillRect(pad.x, pad.y, pad.w, pad.h);
+
+  //Move bars
+  if (p1 == "left" && pad.x >= 0) pad.x -= 5;
+  if (p1 == "right" && pad.x <= 350) pad.x += 5;
+
+  //Reflect ball
+  if (ball.x - 10 <= 0) ball.direX = Math.abs(ball.direX);
+  if (ball.x + 10 >= 480) ball.direX = -Math.abs(ball.direX);
+  if (ball.y - 10 <= 0) ball.direY = Math.abs(ball.direY);
+  reflect(ball, pad);
+
+  if (ball.y > 610) {
+    cc.fillStyle = "red";
+    cc.font = "bold 46px Arial";
+    cc.textAlign = 'center';
+    cc.fillText("Game Over", 240, 300);
+    cc.strokeStyle = "black";
+    cc.strokeText("Game Over", 240, 300);
+    cc.fillStyle = "red";
+    cc.font = "30px Arial";
+    cc.fillText("Reload the page to restart", 240, 330);
+    cc.strokeStyle = "black";
+    cc.strokeText("Reload the page to restart", 240, 330);
+  }
+
+  if (!bn) {
+    cc.fillStyle = "red";
+    cc.font = "bold 46px Arial";
+    cc.textAlign = 'center';
+    cc.fillText("You won", 240, 300);
+    cc.strokeStyle = "black";
+    cc.strokeText("You won", 240, 300);
+    cc.fillStyle = "red";
+    cc.font = "30px Arial";
+    cc.fillText("Reload the page to restart", 240, 330);
+    cc.strokeStyle = "black";
+    cc.strokeText("Reload the page to restart", 240, 330);
+  }
+
+  //move ball
+  ball.x += ball.direX
+  ball.y += ball.direY
+}
+
+//Get keyboard inputs
+function kd(ev) {
+
+  //Get arrows inputs
+  if (ev.type == "keydown") {
+    if (ev.keyCode == 37 || ev.keyCode == 65) {
+      console.log("LEFT");
+      p1 = "left";
+    }
+
+    if (ev.keyCode == 39 || ev.keyCode == 68) {
+      console.log("RIGHT");
+      p1 = "right";
+    }
+
+  }
+
+}
+
+//Get keyup inputs
+function ku(ev) {
+
+  if (ev.type == "keyup") {
+
+    if (ev.keyCode == 37 || ev.keyCode == 65) {
+      console.log("STOP");
+      p1 = "stop";
+    }
+
+    if (ev.keyCode == 39 || ev.keyCode == 68) {
+      console.log("STOP");
+      p1 = "stop";
+    }
+
+  }
+
+}
+    </script>
+</html>
